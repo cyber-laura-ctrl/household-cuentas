@@ -1,432 +1,416 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2575.6">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Liza & Laura — Household Tracker</title>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    // ============================================================
+    //  STEP 1 — Paste your Firebase config here
+    // ============================================================
+    const firebaseConfig = {
+      apiKey:            "AIzaSyDfB_XglEf6d8ggoAlr17F_Mvr-RBk63oE",
+      authDomain:        "house-cuentas.firebaseapp.com",
+      databaseURL:       "https://house-cuentas-default-rtdb.firebaseio.com",
+      projectId:         "house-cuentas",
+      storageBucket:     "house-cuentas.firebasestorage.app",
+      messagingSenderId: "773416483516",
+      appId:             "1:773416483516:web:af9b075df77142f2906eb9"
+    };
+    // ============================================================
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getDatabase(app);
+
+    // Expose read/write helpers to the main app
+    window._dbSave = async (key, value) => {
+      await set(ref(db, "hhtracker/" + key), value);
+    };
+    window._dbLoad = async (key) => {
+      const snap = await get(ref(db, "hhtracker/" + key));
+      return snap.exists() ? snap.val() : null;
+    };
+    window._DB_READY = true;
+    window.dispatchEvent(new Event("db-ready"));
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0f172a; color: #f1f5f9; font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+
+    /* ── layout ── */
+    #app { display: flex; flex-direction: column; min-height: 100vh; }
+    header { background: #1e293b; border-bottom: 1px solid #334155; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    header h1 { font-size: 17px; font-weight: 700; }
+    .month-nav { display: flex; align-items: center; gap: 10px; }
+    .month-nav span { font-size: 15px; font-weight: 600; min-width: 155px; text-align: center; }
+    nav { background: #1e293b; border-bottom: 1px solid #334155; padding: 10px 20px; display: flex; gap: 6px; }
+    main { padding: 20px; max-width: 920px; margin: 0 auto; width: 100%; }
+
+    /* ── buttons ── */
+    button { cursor: pointer; font-family: inherit; }
+    .btn-nav { background: none; border: 1px solid #334155; color: #f1f5f9; border-radius: 6px; padding: 6px 13px; font-size: 14px; }
+    .btn-tab { background: none; border: none; color: #94a3b8; border-radius: 6px; padding: 7px 16px; font-size: 13px; font-weight: 500; }
+    .btn-tab.active { background: #6366f1; color: #fff; }
+    .btn-add { background: #6366f1; color: #fff; border: none; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+    .btn-settle { background: #22c55e; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; }
+    .btn-ghost { background: none; border: 1px solid #334155; color: #94a3b8; border-radius: 6px; padding: 6px 12px; font-size: 12px; }
+    .btn-icon { background: none; border: none; color: #94a3b8; padding: 2px 5px; font-size: 13px; }
+
+    /* ── cards ── */
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+    .card-title { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 14px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+    .kv { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; font-size: 13px; }
+    .kv .k { color: #94a3b8; }
+    .kv .v { font-weight: 600; }
+    .divider { height: 1px; background: #334155; margin: 10px 0; }
+    .big { font-size: 24px; font-weight: 700; }
+
+    /* ── settlement banner ── */
+    .banner { border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .banner.pending  { background: #1e1a0f; border: 1px solid #f59e0b; }
+    .banner.settled  { background: #132213; border: 1px solid #22c55e; }
+    .banner.even     { background: #132213; border: 1px solid #22c55e; }
+    .banner-label { font-size: 11px; font-weight: 600; margin-bottom: 3px; }
+    .banner-main  { font-size: 16px; font-weight: 700; }
+    .banner-sub   { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+
+    /* ── table ── */
+    .tbl-head, .tbl-row { display: grid; grid-template-columns: 1fr 100px 85px 80px 70px 76px; gap: 8px; align-items: center; }
+    .tbl-head { padding: 6px 0 8px; border-bottom: 1px solid #334155; }
+    .tbl-head span { font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; }
+    .tbl-row { padding: 9px 0; border-bottom: 1px solid #334155; font-size: 13px; }
+    .tbl-row input, .tbl-row select { background: #0f172a; border: 1px solid #334155; color: #f1f5f9; border-radius: 6px; padding: 5px 8px; font-size: 12px; width: 100%; }
+
+    /* ── add row ── */
+    .add-row { display: grid; grid-template-columns: 1fr 100px 85px 80px 70px 76px; gap: 8px; align-items: center; margin-top: 14px; padding-top: 14px; border-top: 1px solid #334155; }
+    .add-row input, .add-row select { background: #0f172a; border: 1px solid #334155; color: #f1f5f9; border-radius: 6px; padding: 7px 9px; font-size: 13px; width: 100%; }
+
+    /* ── pills ── */
+    .pill { border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600; display: inline-block; }
+    .pill-a  { background: #ec489922; color: #ec4899; }
+    .pill-b  { background: #6366f122; color: #6366f1; }
+    .pill-exp { background: #64748b22; color: #94a3b8; }
+    .pill-sav { background: #f59e0b22; color: #f59e0b; }
+
+    /* ── modal ── */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .modal { background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 28px; width: 340px; }
+    .modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .modal p  { font-size: 13px; color: #94a3b8; margin-bottom: 20px; }
+    .field { margin-bottom: 14px; }
+    .field label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 5px; }
+    .field input { background: #0f172a; border: 1px solid #334155; color: #f1f5f9; border-radius: 6px; padding: 8px 10px; font-size: 13px; width: 100%; }
+    .modal-btns { display: flex; gap: 10px; margin-top: 6px; }
+    .modal-btns button { flex: 1; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+
+    /* ── history ── */
+    .hist-row { padding: 12px 0; border-bottom: 1px solid #334155; }
+    .hist-row .top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .hist-row .note { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+
+    /* ── loading / sync ── */
+    #loading { display: flex; align-items: center; justify-content: center; height: 100vh; font-size: 15px; color: #94a3b8; }
+    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; display: inline-block; margin-left: 8px; }
+    .sync-dot.saving { background: #f59e0b; }
+
+    @media (max-width: 640px) {
+      .grid2 { grid-template-columns: 1fr; }
+      .tbl-head, .tbl-row, .add-row { grid-template-columns: 1fr 70px 70px 60px; }
+      .tbl-head span:nth-child(4), .tbl-head span:nth-child(5),
+      .tbl-row > *:nth-child(4), .tbl-row > *:nth-child(5),
+      .add-row > *:nth-child(4), .add-row > *:nth-child(5) { display: none; }
+    }
   </style>
 </head>
 <body>
-<p class="p1">&lt;!DOCTYPE html&gt;</p>
-<p class="p1">&lt;html lang="en"&gt;</p>
-<p class="p1">&lt;head&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;meta charset="UTF-8" /&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;meta name="viewport" content="width=device-width, initial-scale=1.0" /&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;title&gt;Liza &amp; Laura — Household Tracker&lt;/title&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;!-- Firebase --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;script type="module"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";</p>
-<p class="p1"><span class="Apple-converted-space">    </span>import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>// ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">    </span>//<span class="Apple-converted-space">  </span>STEP 1 — Paste your Firebase config here</p>
-<p class="p1"><span class="Apple-converted-space">    </span>// ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">    </span>const firebaseConfig = {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>apiKey:<span class="Apple-converted-space">            </span>"AIzaSyDfB_XglEf6d8ggoAlr17F_Mvr-RBk63oE",</p>
-<p class="p1"><span class="Apple-converted-space">      </span>authDomain:<span class="Apple-converted-space">        </span>"house-cuentas.firebaseapp.com",</p>
-<p class="p1"><span class="Apple-converted-space">      </span>databaseURL: <span class="Apple-converted-space">      </span>"https://house-cuentas-default-rtdb.firebaseio.com",</p>
-<p class="p1"><span class="Apple-converted-space">      </span>projectId: <span class="Apple-converted-space">        </span>"house-cuentas",</p>
-<p class="p1"><span class="Apple-converted-space">      </span>storageBucket: <span class="Apple-converted-space">    </span>"house-cuentas.firebasestorage.app",</p>
-<p class="p1"><span class="Apple-converted-space">      </span>messagingSenderId: "773416483516",</p>
-<p class="p1"><span class="Apple-converted-space">      </span>appId: <span class="Apple-converted-space">            </span>"1:773416483516:web:af9b075df77142f2906eb9"</p>
-<p class="p1"><span class="Apple-converted-space">    </span>};</p>
-<p class="p1"><span class="Apple-converted-space">    </span>// ============================================================</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>const app = initializeApp(firebaseConfig);</p>
-<p class="p1"><span class="Apple-converted-space">    </span>const db<span class="Apple-converted-space">  </span>= getDatabase(app);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>// Expose read/write helpers to the main app</p>
-<p class="p1"><span class="Apple-converted-space">    </span>window._dbSave = async (key, value) =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>await set(ref(db, "hhtracker/" + key), value);</p>
-<p class="p1"><span class="Apple-converted-space">    </span>};</p>
-<p class="p1"><span class="Apple-converted-space">    </span>window._dbLoad = async (key) =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const snap = await get(ref(db, "hhtracker/" + key));</p>
-<p class="p1"><span class="Apple-converted-space">      </span>return snap.exists() ? snap.val() : null;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>};</p>
-<p class="p1"><span class="Apple-converted-space">    </span>window._DB_READY = true;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>window.dispatchEvent(new Event("db-ready"));</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/script&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;style&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>body { background: #0f172a; color: #f1f5f9; font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/* ── layout ── */</p>
-<p class="p1"><span class="Apple-converted-space">    </span>#app { display: flex; flex-direction: column; min-height: 100vh; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>header { background: #1e293b; border-bottom: 1px solid #334155; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>header h1 { font-size: 17px; font-weight: 700; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.month-nav { display: flex; align-items: center; gap: 10px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.month-nav span { font-size: 15px; font-weight: 600; min-width: 155px; text-align: center; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>nav { background: #1e293b; border-bottom: 1px solid #334155; padding: 10px 20px; display: flex; gap: 6px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>main { padding: 20px; max-width: 920px; margin: 0 auto; width: 100%; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/* ── buttons ── */</p>
-<p class="p1"><span class="Apple-converted-space">    </span>button { cursor: pointer; font-family: inherit; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.btn-nav { background: none; border: 1px solid #334155; color: #f1f5f9; border-radius: 6px; padding: 6px 13px; font-size: 14px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.btn-tab { background: none; border: none; color: #94a3b8; border-radius: 6px; padding: 7px 16px; font-size: 13px; font-weight: 500; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.btn-tab.active { background: #6366f1; color: #fff; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.btn-add { background: #6366f1; color: #fff; border: none; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 600; white-space: nowrap; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.btn-settle { background: #22c55e; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.btn-ghost { background: none; border: 1px solid #334155; color: #94a3b8; border-radius: 6px; padding: 6px 12px; font-size: 12px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.btn-icon { background: none; border: none; color: #94a3b8; padding: 2px 5px; font-size: 13px; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/* ── cards ── */</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 18px; margin-bottom: 16px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.card-title { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 14px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.kv { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; font-size: 13px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.kv .k { color: #94a3b8; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.kv .v { font-weight: 600; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.divider { height: 1px; background: #334155; margin: 10px 0; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.big { font-size: 24px; font-weight: 700; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/* ── settlement banner ── */</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.banner { border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.banner.pending<span class="Apple-converted-space">  </span>{ background: #1e1a0f; border: 1px solid #f59e0b; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.banner.settled<span class="Apple-converted-space">  </span>{ background: #132213; border: 1px solid #22c55e; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.banner.even <span class="Apple-converted-space">    </span>{ background: #132213; border: 1px solid #22c55e; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.banner-label { font-size: 11px; font-weight: 600; margin-bottom: 3px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.banner-main<span class="Apple-converted-space">  </span>{ font-size: 16px; font-weight: 700; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.banner-sub <span class="Apple-converted-space">  </span>{ font-size: 12px; color: #94a3b8; margin-top: 4px; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/* ── table ── */</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.tbl-head, .tbl-row { display: grid; grid-template-columns: 1fr 100px 85px 80px 70px 76px; gap: 8px; align-items: center; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.tbl-head { padding: 6px 0 8px; border-bottom: 1px solid #334155; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.tbl-head span { font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.tbl-row { padding: 9px 0; border-bottom: 1px solid #334155; font-size: 13px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.tbl-row input, .tbl-row select { background: #0f172a; border: 1px solid #334155; color: #f1f5f9; border-radius: 6px; padding: 5px 8px; font-size: 12px; width: 100%; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/* ── add row ── */</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.add-row { display: grid; grid-template-columns: 1fr 100px 85px 80px 70px 76px; gap: 8px; align-items: center; margin-top: 14px; padding-top: 14px; border-top: 1px solid #334155; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.add-row input, .add-row select { background: #0f172a; border: 1px solid #334155; color: #f1f5f9; border-radius: 6px; padding: 7px 9px; font-size: 13px; width: 100%; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/* ── pills ── */</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.pill { border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600; display: inline-block; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.pill-a<span class="Apple-converted-space">  </span>{ background: #ec489922; color: #ec4899; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.pill-b<span class="Apple-converted-space">  </span>{ background: #6366f122; color: #6366f1; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.pill-exp { background: #64748b22; color: #94a3b8; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.pill-sav { background: #f59e0b22; color: #f59e0b; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/* ── modal ── */</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 100; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.modal { background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 28px; width: 340px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.modal p<span class="Apple-converted-space">  </span>{ font-size: 13px; color: #94a3b8; margin-bottom: 20px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.field { margin-bottom: 14px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.field label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 5px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.field input { background: #0f172a; border: 1px solid #334155; color: #f1f5f9; border-radius: 6px; padding: 8px 10px; font-size: 13px; width: 100%; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.modal-btns { display: flex; gap: 10px; margin-top: 6px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.modal-btns button { flex: 1; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: 600; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/* ── history ── */</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.hist-row { padding: 12px 0; border-bottom: 1px solid #334155; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.hist-row .top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.hist-row .note { font-size: 12px; color: #94a3b8; margin-top: 4px; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/* ── loading / sync ── */</p>
-<p class="p1"><span class="Apple-converted-space">    </span>#loading { display: flex; align-items: center; justify-content: center; height: 100vh; font-size: 15px; color: #94a3b8; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; display: inline-block; margin-left: 8px; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.sync-dot.saving { background: #f59e0b; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>@media (max-width: 640px) {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>.grid2 { grid-template-columns: 1fr; }</p>
-<p class="p1"><span class="Apple-converted-space">      </span>.tbl-head, .tbl-row, .add-row { grid-template-columns: 1fr 70px 70px 60px; }</p>
-<p class="p1"><span class="Apple-converted-space">      </span>.tbl-head span:nth-child(4), .tbl-head span:nth-child(5),</p>
-<p class="p1"><span class="Apple-converted-space">      </span>.tbl-row &gt; *:nth-child(4), .tbl-row &gt; *:nth-child(5),</p>
-<p class="p1"><span class="Apple-converted-space">      </span>.add-row &gt; *:nth-child(4), .add-row &gt; *:nth-child(5) { display: none; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/style&gt;</p>
-<p class="p1">&lt;/head&gt;</p>
-<p class="p1">&lt;body&gt;</p>
-<p class="p1">&lt;div id="loading"&gt;Connecting to database…&lt;/div&gt;</p>
-<p class="p1">&lt;div id="app" style="display:none"&gt;&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1">&lt;script&gt;</p>
-<p class="p1">// ── constants ──────────────────────────────────────────────────</p>
-<p class="p1">const PA = "Liza", PB = "Laura", SA = .64, SB = .36;</p>
-<p class="p1">const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];</p>
-<p class="p1">const DEFAULT_FIXED = [</p>
-<p class="p1"><span class="Apple-converted-space">  </span>{ id:"f1", description:"Mortgage", <span class="Apple-converted-space">      </span>category:"Mortgage",<span class="Apple-converted-space">      </span>amount:1818.39, paidBy:PA, type:"expense" },</p>
-<p class="p1"><span class="Apple-converted-space">  </span>{ id:"f2", description:"Car Insurance",<span class="Apple-converted-space">  </span>category:"Insurance", <span class="Apple-converted-space">    </span>amount:317.33,<span class="Apple-converted-space">  </span>paidBy:PA, type:"expense" },</p>
-<p class="p1"><span class="Apple-converted-space">  </span>{ id:"f3", description:"Strata", <span class="Apple-converted-space">        </span>category:"Insurance", <span class="Apple-converted-space">    </span>amount:205.52,<span class="Apple-converted-space">  </span>paidBy:PA, type:"expense" },</p>
-<p class="p1"><span class="Apple-converted-space">  </span>{ id:"f4", description:"Home Insurance", category:"Insurance", <span class="Apple-converted-space">    </span>amount:40.25, <span class="Apple-converted-space">  </span>paidBy:PA, type:"expense" },</p>
-<p class="p1"><span class="Apple-converted-space">  </span>{ id:"f5", description:"Cookie Insurance",category:"Insurance",<span class="Apple-converted-space">    </span>amount:148.84,<span class="Apple-converted-space">  </span>paidBy:PA, type:"expense" },</p>
-<p class="p1"><span class="Apple-converted-space">  </span>{ id:"f6", description:"Utilities",<span class="Apple-converted-space">      </span>category:"General", <span class="Apple-converted-space">      </span>amount:390.05,<span class="Apple-converted-space">  </span>paidBy:PA, type:"expense" },</p>
-<p class="p1"><span class="Apple-converted-space">  </span>{ id:"f7", description:"Rogers", <span class="Apple-converted-space">        </span>category:"Phone/Internet",amount:124.33,<span class="Apple-converted-space">  </span>paidBy:PA, type:"expense" },</p>
-<p class="p1"><span class="Apple-converted-space">  </span>{ id:"f8", description:"Shaw", <span class="Apple-converted-space">          </span>category:"Internet",<span class="Apple-converted-space">      </span>amount:68.21, <span class="Apple-converted-space">  </span>paidBy:PA, type:"expense" },</p>
-<p class="p1"><span class="Apple-converted-space">  </span>{ id:"f9", description:"Savings",<span class="Apple-converted-space">        </span>category:"Savings", <span class="Apple-converted-space">      </span>amount:3000.00, paidBy:PA, type:"savings" },</p>
-<p class="p1">];</p>
-<p class="p2"><br></p>
-<p class="p1">const fmt<span class="Apple-converted-space">  </span>= v =&gt; "$" + Number(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,",");</p>
-<p class="p1">const uid<span class="Apple-converted-space">  </span>= () =&gt; Math.random().toString(36).slice(2,9);</p>
-<p class="p1">const mKey = (y,m) =&gt; `${y}-${String(m+1).padStart(2,"0")}`;</p>
-<p class="p1">const todayStr = () =&gt; new Date().toISOString().slice(0,10);</p>
-<p class="p2"><br></p>
-<p class="p1">// ── state ──────────────────────────────────────────────────────</p>
-<p class="p1">let state = { data:{}, tab:"dashboard", year: new Date().getFullYear(), month: new Date().getMonth(),</p>
-<p class="p1"><span class="Apple-converted-space">  </span>newDesc:"", newCat:"", newAmt:"", newPaid:PA, newType:"expense",</p>
-<p class="p1"><span class="Apple-converted-space">  </span>editId:null, editVals:{}, showModal:false, settleDate:todayStr(), settleNote:"", syncing:false };</p>
-<p class="p2"><br></p>
-<p class="p1">function curKey()<span class="Apple-converted-space">  </span>{ return mKey(state.year, state.month); }</p>
-<p class="p1">function curMonth(){ return state.data[curKey()] || initMonth(curKey()); }</p>
-<p class="p1">function initMonth(key){ return { key, fixed: DEFAULT_FIXED.map(e=&gt;({...e,id:uid()})), variable:[], settlement:null }; }</p>
-<p class="p2"><br></p>
-<p class="p1">// ── firebase sync ──────────────────────────────────────────────</p>
-<p class="p1">let saveTimer = null;</p>
-<p class="p1">async function saveData() {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (!window._DB_READY) return;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>clearTimeout(saveTimer);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>saveTimer = setTimeout(async () =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">    </span>setSyncing(true);</p>
-<p class="p1"><span class="Apple-converted-space">    </span>try { await window._dbSave("data", state.data); } catch(e){ console.error(e); }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>setSyncing(false);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>}, 800);</p>
-<p class="p1">}</p>
-<p class="p1">async function loadData() {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (!window._DB_READY) return;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>try {</p>
-<p class="p1"><span class="Apple-converted-space">    </span>const d = await window._dbLoad("data");</p>
-<p class="p1"><span class="Apple-converted-space">    </span>if (d) state.data = d;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>} catch(e){ console.error(e); }</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById("loading").style.display = "none";</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById("app").style.display = "flex";</p>
-<p class="p1"><span class="Apple-converted-space">  </span>render();</p>
-<p class="p1">}</p>
-<p class="p1">function setSyncing(v){ state.syncing = v; renderSyncDot(); }</p>
-<p class="p2"><br></p>
-<p class="p1">// ── mutations ──────────────────────────────────────────────────</p>
-<p class="p1">function setMonth(updater){</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const k = curKey();</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const m = state.data[k] || initMonth(k);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>state.data[k] = updater(m);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>saveData(); render();</p>
-<p class="p1">}</p>
-<p class="p1">function navigate(dir){</p>
-<p class="p1"><span class="Apple-converted-space">  </span>let mo = state.month + dir, y = state.year;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (mo&lt;0){mo=11;y--;} if(mo&gt;11){mo=0;y++;}</p>
-<p class="p1"><span class="Apple-converted-space">  </span>state.month=mo; state.year=y; render();</p>
-<p class="p1">}</p>
-<p class="p1">function addEntry(){</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if(!state.newDesc||!state.newAmt) return;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const e={id:uid(),description:state.newDesc,category:state.newCat,amount:parseFloat(state.newAmt),paidBy:state.newPaid,type:state.newType};</p>
-<p class="p1"><span class="Apple-converted-space">  </span>setMonth(m=&gt;({...m,variable:[...m.variable,e]}));</p>
-<p class="p1"><span class="Apple-converted-space">  </span>state.newDesc=state.newCat=state.newAmt=""; render();</p>
-<p class="p1">}</p>
-<p class="p1">function removeEntry(id,isFixed){</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if(isFixed) setMonth(m=&gt;({...m,fixed:m.fixed.filter(e=&gt;e.id!==id)}));</p>
-<p class="p1"><span class="Apple-converted-space">  </span>else<span class="Apple-converted-space">        </span>setMonth(m=&gt;({...m,variable:m.variable.filter(e=&gt;e.id!==id)}));</p>
-<p class="p1">}</p>
-<p class="p1">function startEdit(e){ state.editId=e.id; state.editVals={description:e.description,category:e.category,amount:e.amount,paidBy:e.paidBy,type:e.type}; render(); }</p>
-<p class="p1">function saveEdit(id,isFixed){</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const upd=arr=&gt;arr.map(e=&gt;e.id===id?{...e,...state.editVals,amount:parseFloat(state.editVals.amount)}:e);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if(isFixed) setMonth(m=&gt;({...m,fixed:upd(m.fixed)}));</p>
-<p class="p1"><span class="Apple-converted-space">  </span>else<span class="Apple-converted-space">        </span>setMonth(m=&gt;({...m,variable:upd(m.variable)}));</p>
-<p class="p1"><span class="Apple-converted-space">  </span>state.editId=null;</p>
-<p class="p1">}</p>
-<p class="p1">function markSettled(owedBy,owedTo,owedAmt){</p>
-<p class="p1"><span class="Apple-converted-space">  </span>setMonth(m=&gt;({...m,settlement:{date:state.settleDate,note:state.settleNote,amount:owedAmt,paidBy:owedBy,paidTo:owedTo}}));</p>
-<p class="p1"><span class="Apple-converted-space">  </span>state.showModal=false; state.settleNote=""; state.settleDate=todayStr();</p>
-<p class="p1">}</p>
-<p class="p1">function unsettle(){ setMonth(m=&gt;({...m,settlement:null})); }</p>
-<p class="p2"><br></p>
-<p class="p1">// ── calculations ───────────────────────────────────────────────</p>
-<p class="p1">function calcMonth(m){</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const all=[...m.fixed,...m.variable];</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const exp=all.filter(e=&gt;e.type==="expense"), sav=all.filter(e=&gt;e.type==="savings");</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const totExp=exp.reduce((s,e)=&gt;s+Number(e.amount),0);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const totSav=sav.reduce((s,e)=&gt;s+Number(e.amount),0);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const pAe=exp.filter(e=&gt;e.paidBy===PA).reduce((s,e)=&gt;s+Number(e.amount),0);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const pBe=exp.filter(e=&gt;e.paidBy===PB).reduce((s,e)=&gt;s+Number(e.amount),0);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const pAs=sav.filter(e=&gt;e.paidBy===PA).reduce((s,e)=&gt;s+Number(e.amount),0);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const pBs=sav.filter(e=&gt;e.paidBy===PB).reduce((s,e)=&gt;s+Number(e.amount),0);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const netA=pAe-totExp*SA;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>return {exp,sav,totExp,totSav,pAe,pBe,pAs,pBs,</p>
-<p class="p1"><span class="Apple-converted-space">    </span>shareAe:totExp*SA,shareBe:totExp*SB,shareAs:totSav*SA,shareBs:totSav*SB,netA};</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">// ── render helpers ─────────────────────────────────────────────</p>
-<p class="p1">function pill(label,cls){ return `&lt;span class="pill ${cls}"&gt;${label}&lt;/span&gt;`; }</p>
-<p class="p2"><br></p>
-<p class="p1">function renderSyncDot(){</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const el=document.getElementById("syncdot");</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if(el) el.className="sync-dot"+(state.syncing?" saving":"");</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">function renderBanner(c){</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const {netA}=c, m=curMonth();</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if(Math.abs(netA)&lt;.01) return `&lt;div class="banner even"&gt;&lt;div&gt;&lt;div class="banner-label" style="color:#22c55e"&gt;SETTLEMENT&lt;/div&gt;&lt;div class="banner-main" style="color:#22c55e"&gt;All even — no payment needed ✓&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if(m.settlement) return `</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="banner settled"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="banner-label" style="color:#22c55e"&gt;SETTLEMENT COMPLETED ✓&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="banner-main" style="color:#22c55e"&gt;${m.settlement.paidBy} paid ${m.settlement.paidTo} ${fmt(m.settlement.amount)}&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="banner-sub"&gt;📅 ${m.settlement.date}${m.settlement.note?" · "+m.settlement.note:""}&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;button class="btn-ghost" onclick="unsettle()"&gt;Undo&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const owedBy=netA&gt;0?PB:PA, owedTo=netA&gt;0?PA:PB, owedAmt=Math.abs(netA);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>return `</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="banner pending"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="banner-label" style="color:#f59e0b"&gt;SETTLEMENT PENDING&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="banner-main"&gt;${owedBy} owes ${owedTo} &lt;span style="color:#f59e0b"&gt;${fmt(owedAmt)}&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;button class="btn-settle" onclick="openSettle(${owedAmt},'${owedBy}','${owedTo}')"&gt;Mark as Settled&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;`;</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">function renderDashboard(c){</p>
-<p class="p1"><span class="Apple-converted-space">  </span>return `</p>
-<p class="p1"><span class="Apple-converted-space">    </span>${renderBanner(c)}</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="grid2"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="card"&gt;&lt;div class="card-title"&gt;Total Expenses&lt;/div&gt;&lt;div class="big"&gt;${fmt(c.totExp)}&lt;/div&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="card"&gt;&lt;div class="card-title"&gt;Total Savings&lt;/div&gt;&lt;div class="big" style="color:#f59e0b"&gt;${fmt(c.totSav)}&lt;/div&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="grid2"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="card-title" style="color:#ec4899"&gt;${PA} — ${Math.round(SA*100)}%&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="kv"&gt;&lt;span class="k"&gt;Fair share (expenses)&lt;/span&gt;&lt;span class="v"&gt;${fmt(c.shareAe)}&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="kv"&gt;&lt;span class="k"&gt;Actually paid&lt;/span&gt;&lt;span class="v"&gt;${fmt(c.pAe)}&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="divider"&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="kv"&gt;&lt;span class="k"&gt;Savings contribution (64%)&lt;/span&gt;&lt;span class="v" style="color:#f59e0b"&gt;${fmt(c.shareAs)}&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="kv"&gt;&lt;span class="k"&gt;Savings paid&lt;/span&gt;&lt;span class="v" style="color:#f59e0b"&gt;${fmt(c.pAs)}&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="card-title" style="color:#6366f1"&gt;${PB} — ${Math.round(SB*100)}%&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="kv"&gt;&lt;span class="k"&gt;Fair share (expenses)&lt;/span&gt;&lt;span class="v"&gt;${fmt(c.shareBe)}&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="kv"&gt;&lt;span class="k"&gt;Actually paid&lt;/span&gt;&lt;span class="v"&gt;${fmt(c.pBe)}&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="divider"&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="kv"&gt;&lt;span class="k"&gt;Savings contribution (36%)&lt;/span&gt;&lt;span class="v" style="color:#f59e0b"&gt;${fmt(c.shareBs)}&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="kv"&gt;&lt;span class="k"&gt;Savings paid&lt;/span&gt;&lt;span class="v" style="color:#f59e0b"&gt;${fmt(c.pBs)}&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;`;</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">function renderRow(e,isFixed){</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if(state.editId===e.id) return `</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="tbl-row"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;input value="${e.description}" oninput="state.editVals.description=this.value"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;input value="${e.category}" oninput="state.editVals.category=this.value"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;input type="number" value="${e.amount}" oninput="state.editVals.amount=this.value"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;select onchange="state.editVals.paidBy=this.value"&gt;&lt;option${e.paidBy===PA?" selected":""}&gt;${PA}&lt;/option&gt;&lt;option${e.paidBy===PB?" selected":""}&gt;${PB}&lt;/option&gt;&lt;/select&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;select onchange="state.editVals.type=this.value"&gt;&lt;option value="expense"${e.type==="expense"?" selected":""}&gt;Expense&lt;/option&gt;&lt;option value="savings"${e.type==="savings"?" selected":""}&gt;Savings&lt;/option&gt;&lt;/select&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div&gt;&lt;button class="btn-icon" style="color:#22c55e" onclick="saveEdit('${e.id}',${isFixed})"&gt;✓&lt;/button&gt;&lt;button class="btn-icon" onclick="state.editId=null;render()"&gt;✕&lt;/button&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>return `</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="tbl-row"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div&gt;${e.description}&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div style="font-size:12px;color:#94a3b8"&gt;${e.category}&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div style="font-weight:600;color:${e.type==="savings"?"#f59e0b":"#f1f5f9"}"&gt;${fmt(e.amount)}&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>${pill(e.paidBy, e.paidBy===PA?"pill-a":"pill-b")}</p>
-<p class="p1"><span class="Apple-converted-space">      </span>${pill(e.type, e.type==="savings"?"pill-sav":"pill-exp")}</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div&gt;&lt;button class="btn-icon" onclick="startEdit(${JSON.stringify(e).replace(/"/g,'&amp;quot;')})"&gt;✏️&lt;/button&gt;&lt;button class="btn-icon" style="color:#f87171" onclick="removeEntry('${e.id}',${isFixed})"&gt;🗑️&lt;/button&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;`;</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">function renderExpenses(m){</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const fixedRows=m.fixed.map(e=&gt;renderRow(e,true)).join("");</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const varRows=m.variable.map(e=&gt;renderRow(e,false)).join("");</p>
-<p class="p1"><span class="Apple-converted-space">  </span>return `</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="card-title"&gt;Fixed Expenses &amp; Savings&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="tbl-head"&gt;&lt;span&gt;Description&lt;/span&gt;&lt;span&gt;Category&lt;/span&gt;&lt;span&gt;Amount&lt;/span&gt;&lt;span&gt;Paid By&lt;/span&gt;&lt;span&gt;Type&lt;/span&gt;&lt;span&gt;&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>${fixedRows}</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="card-title"&gt;Variable Expenses&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="tbl-head"&gt;&lt;span&gt;Description&lt;/span&gt;&lt;span&gt;Category&lt;/span&gt;&lt;span&gt;Amount&lt;/span&gt;&lt;span&gt;Paid By&lt;/span&gt;&lt;span&gt;Type&lt;/span&gt;&lt;span&gt;&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>${varRows||'&lt;div style="color:#94a3b8;font-size:13px;padding:12px 0"&gt;No variable expenses yet.&lt;/div&gt;'}</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="add-row"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;input placeholder="Description" value="${state.newDesc}" oninput="state.newDesc=this.value"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;input placeholder="Category" value="${state.newCat}" oninput="state.newCat=this.value"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;input type="number" placeholder="Amount" value="${state.newAmt}" oninput="state.newAmt=this.value"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;select onchange="state.newPaid=this.value"&gt;&lt;option${state.newPaid===PA?" selected":""}&gt;${PA}&lt;/option&gt;&lt;option${state.newPaid===PB?" selected":""}&gt;${PB}&lt;/option&gt;&lt;/select&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;select onchange="state.newType=this.value"&gt;&lt;option value="expense"${state.newType==="expense"?" selected":""}&gt;Expense&lt;/option&gt;&lt;option value="savings"${state.newType==="savings"?" selected":""}&gt;Savings&lt;/option&gt;&lt;/select&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="btn-add" onclick="addEntry()"&gt;+ Add&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;`;</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">function renderHistory(){</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const keys=Object.keys(state.data).sort().reverse().slice(0,24);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if(!keys.length) return `&lt;div class="card"&gt;&lt;div class="card-title"&gt;Monthly History&lt;/div&gt;&lt;div style="color:#94a3b8;font-size:13px"&gt;No data yet.&lt;/div&gt;&lt;/div&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const rows=keys.map(k=&gt;{</p>
-<p class="p1"><span class="Apple-converted-space">    </span>const m=state.data[k], c=calcMonth(m);</p>
-<p class="p1"><span class="Apple-converted-space">    </span>const [yr,mo]=k.split("-");</p>
-<p class="p1"><span class="Apple-converted-space">    </span>const label=`${MONTHS[parseInt(mo)-1]} ${yr}`;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>const isEven=Math.abs(c.netA)&lt;.01;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>let status;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>if(isEven) status=`&lt;span style="font-size:12px;color:#22c55e;font-weight:600"&gt;Even ✓&lt;/span&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>else if(m.settlement) status=`&lt;span style="font-size:12px;color:#22c55e;font-weight:600"&gt;Settled ✓ · ${m.settlement.date}&lt;/span&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>else { const ob=c.netA&gt;0?PB:PA; status=`&lt;span style="font-size:12px;color:#f59e0b;font-weight:600"&gt;${ob} owes ${fmt(Math.abs(c.netA))} · Pending&lt;/span&gt;`; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>return `&lt;div class="hist-row"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="top"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;span style="font-size:14px;font-weight:700;min-width:130px"&gt;${label}&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;span style="font-size:13px;color:#94a3b8"&gt;Expenses: &lt;b style="color:#f1f5f9"&gt;${fmt(c.totExp)}&lt;/b&gt;&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;span style="font-size:13px;color:#94a3b8"&gt;Savings: &lt;b style="color:#f59e0b"&gt;${fmt(c.totSav)}&lt;/b&gt;&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>${status}</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>${m.settlement?.note?`&lt;div class="note"&gt;Note: ${m.settlement.note}&lt;/div&gt;`:""}</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>}).join("");</p>
-<p class="p1"><span class="Apple-converted-space">  </span>return `&lt;div class="card"&gt;&lt;div class="card-title"&gt;Monthly History&lt;/div&gt;${rows}&lt;/div&gt;`;</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">function renderModal(c){</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if(!state.showModal) return "";</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const {netA}=c, owedAmt=Math.abs(netA), owedBy=netA&gt;0?PB:PA, owedTo=netA&gt;0?PA:PB;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>return `&lt;div class="overlay"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="modal"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;h2&gt;Mark Settlement&lt;/h2&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;p&gt;${owedBy} pays ${owedTo} &lt;span style="color:#f59e0b;font-weight:700"&gt;${fmt(owedAmt)}&lt;/span&gt;&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="field"&gt;&lt;label&gt;Date of payment&lt;/label&gt;&lt;input type="date" value="${state.settleDate}" oninput="state.settleDate=this.value"&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="field"&gt;&lt;label&gt;Note (optional)&lt;/label&gt;&lt;input placeholder="e.g. e-transfer, cash…" value="${state.settleNote}" oninput="state.settleNote=this.value"&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="modal-btns"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button style="background:#22c55e;color:#fff;border:none" onclick="markSettled('${owedBy}','${owedTo}',${owedAmt})"&gt;Confirm Settled&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="btn-ghost" onclick="state.showModal=false;render()"&gt;Cancel&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/div&gt;`;</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">function openSettle(amt,by,to){ state.showModal=true; render(); }</p>
-<p class="p2"><br></p>
-<p class="p1">// ── main render ────────────────────────────────────────────────</p>
-<p class="p1">function render(){</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const m=curMonth(), c=calcMonth(m);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById("app").innerHTML=`</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;header&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;h1&gt;🏠 Liza &amp; Laura — Household Tracker &lt;span id="syncdot" class="sync-dot${state.syncing?" saving":""}"&gt;&lt;/span&gt;&lt;/h1&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="month-nav"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="btn-nav" onclick="navigate(-1)"&gt;‹&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;span&gt;${MONTHS[state.month]} ${state.year}&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="btn-nav" onclick="navigate(1)"&gt;›&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/header&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;nav&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;button class="btn-tab${state.tab==="dashboard"?" active":""}" onclick="state.tab='dashboard';render()"&gt;📊 Dashboard&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;button class="btn-tab${state.tab==="expenses"?" active":""}" onclick="state.tab='expenses';render()"&gt;💳 Expenses&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;button class="btn-tab${state.tab==="history"?" active":""}" onclick="state.tab='history';render()"&gt;📅 History&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/nav&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;main&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>${state.tab==="dashboard"?renderDashboard(c):""}</p>
-<p class="p1"><span class="Apple-converted-space">      </span>${state.tab==="expenses"?renderExpenses(m):""}</p>
-<p class="p1"><span class="Apple-converted-space">      </span>${state.tab==="history"?renderHistory():""}</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/main&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>${renderModal(c)}`;</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">// ── boot ───────────────────────────────────────────────────────</p>
-<p class="p1">if(window._DB_READY) loadData();</p>
-<p class="p1">else window.addEventListener("db-ready", loadData);</p>
-<p class="p1">&lt;/script&gt;</p>
-<p class="p1">&lt;/body&gt;</p>
-<p class="p1">&lt;/html&gt;</p>
+<div id="loading">Connecting to database…</div>
+<div id="app" style="display:none"></div>
+
+<script>
+// ── constants ──────────────────────────────────────────────────
+const PA = "Liza", PB = "Laura", SA = .64, SB = .36;
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DEFAULT_FIXED = [
+  { id:"f1", description:"Mortgage",       category:"Mortgage",      amount:1818.39, paidBy:PA, type:"expense" },
+  { id:"f2", description:"Car Insurance",  category:"Insurance",     amount:317.33,  paidBy:PA, type:"expense" },
+  { id:"f3", description:"Strata",         category:"Insurance",     amount:205.52,  paidBy:PA, type:"expense" },
+  { id:"f4", description:"Home Insurance", category:"Insurance",     amount:40.25,   paidBy:PA, type:"expense" },
+  { id:"f5", description:"Cookie Insurance",category:"Insurance",    amount:148.84,  paidBy:PA, type:"expense" },
+  { id:"f6", description:"Utilities",      category:"General",       amount:390.05,  paidBy:PA, type:"expense" },
+  { id:"f7", description:"Rogers",         category:"Phone/Internet",amount:124.33,  paidBy:PA, type:"expense" },
+  { id:"f8", description:"Shaw",           category:"Internet",      amount:68.21,   paidBy:PA, type:"expense" },
+  { id:"f9", description:"Savings",        category:"Savings",       amount:3000.00, paidBy:PA, type:"savings" },
+];
+
+const fmt  = v => "$" + Number(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,",");
+const uid  = () => Math.random().toString(36).slice(2,9);
+const mKey = (y,m) => `${y}-${String(m+1).padStart(2,"0")}`;
+const todayStr = () => new Date().toISOString().slice(0,10);
+
+// ── state ──────────────────────────────────────────────────────
+let state = { data:{}, tab:"dashboard", year: new Date().getFullYear(), month: new Date().getMonth(),
+  newDesc:"", newCat:"", newAmt:"", newPaid:PA, newType:"expense",
+  editId:null, editVals:{}, showModal:false, settleDate:todayStr(), settleNote:"", syncing:false };
+
+function curKey()  { return mKey(state.year, state.month); }
+function curMonth(){ return state.data[curKey()] || initMonth(curKey()); }
+function initMonth(key){ return { key, fixed: DEFAULT_FIXED.map(e=>({...e,id:uid()})), variable:[], settlement:null }; }
+
+// ── firebase sync ──────────────────────────────────────────────
+let saveTimer = null;
+async function saveData() {
+  if (!window._DB_READY) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    setSyncing(true);
+    try { await window._dbSave("data", state.data); } catch(e){ console.error(e); }
+    setSyncing(false);
+  }, 800);
+}
+async function loadData() {
+  if (!window._DB_READY) return;
+  try {
+    const d = await window._dbLoad("data");
+    if (d) state.data = d;
+  } catch(e){ console.error(e); }
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("app").style.display = "flex";
+  render();
+}
+function setSyncing(v){ state.syncing = v; renderSyncDot(); }
+
+// ── mutations ──────────────────────────────────────────────────
+function setMonth(updater){
+  const k = curKey();
+  const m = state.data[k] || initMonth(k);
+  state.data[k] = updater(m);
+  saveData(); render();
+}
+function navigate(dir){
+  let mo = state.month + dir, y = state.year;
+  if (mo<0){mo=11;y--;} if(mo>11){mo=0;y++;}
+  state.month=mo; state.year=y; render();
+}
+function addEntry(){
+  if(!state.newDesc||!state.newAmt) return;
+  const e={id:uid(),description:state.newDesc,category:state.newCat,amount:parseFloat(state.newAmt),paidBy:state.newPaid,type:state.newType};
+  setMonth(m=>({...m,variable:[...m.variable,e]}));
+  state.newDesc=state.newCat=state.newAmt=""; render();
+}
+function removeEntry(id,isFixed){
+  if(isFixed) setMonth(m=>({...m,fixed:m.fixed.filter(e=>e.id!==id)}));
+  else        setMonth(m=>({...m,variable:m.variable.filter(e=>e.id!==id)}));
+}
+function startEdit(e){ state.editId=e.id; state.editVals={description:e.description,category:e.category,amount:e.amount,paidBy:e.paidBy,type:e.type}; render(); }
+function saveEdit(id,isFixed){
+  const upd=arr=>arr.map(e=>e.id===id?{...e,...state.editVals,amount:parseFloat(state.editVals.amount)}:e);
+  if(isFixed) setMonth(m=>({...m,fixed:upd(m.fixed)}));
+  else        setMonth(m=>({...m,variable:upd(m.variable)}));
+  state.editId=null;
+}
+function markSettled(owedBy,owedTo,owedAmt){
+  setMonth(m=>({...m,settlement:{date:state.settleDate,note:state.settleNote,amount:owedAmt,paidBy:owedBy,paidTo:owedTo}}));
+  state.showModal=false; state.settleNote=""; state.settleDate=todayStr();
+}
+function unsettle(){ setMonth(m=>({...m,settlement:null})); }
+
+// ── calculations ───────────────────────────────────────────────
+function calcMonth(m){
+  const all=[...m.fixed,...m.variable];
+  const exp=all.filter(e=>e.type==="expense"), sav=all.filter(e=>e.type==="savings");
+  const totExp=exp.reduce((s,e)=>s+Number(e.amount),0);
+  const totSav=sav.reduce((s,e)=>s+Number(e.amount),0);
+  const pAe=exp.filter(e=>e.paidBy===PA).reduce((s,e)=>s+Number(e.amount),0);
+  const pBe=exp.filter(e=>e.paidBy===PB).reduce((s,e)=>s+Number(e.amount),0);
+  const pAs=sav.filter(e=>e.paidBy===PA).reduce((s,e)=>s+Number(e.amount),0);
+  const pBs=sav.filter(e=>e.paidBy===PB).reduce((s,e)=>s+Number(e.amount),0);
+  const netA=pAe-totExp*SA;
+  return {exp,sav,totExp,totSav,pAe,pBe,pAs,pBs,
+    shareAe:totExp*SA,shareBe:totExp*SB,shareAs:totSav*SA,shareBs:totSav*SB,netA};
+}
+
+// ── render helpers ─────────────────────────────────────────────
+function pill(label,cls){ return `<span class="pill ${cls}">${label}</span>`; }
+
+function renderSyncDot(){
+  const el=document.getElementById("syncdot");
+  if(el) el.className="sync-dot"+(state.syncing?" saving":"");
+}
+
+function renderBanner(c){
+  const {netA}=c, m=curMonth();
+  if(Math.abs(netA)<.01) return `<div class="banner even"><div><div class="banner-label" style="color:#22c55e">SETTLEMENT</div><div class="banner-main" style="color:#22c55e">All even — no payment needed ✓</div></div></div>`;
+  if(m.settlement) return `
+    <div class="banner settled">
+      <div>
+        <div class="banner-label" style="color:#22c55e">SETTLEMENT COMPLETED ✓</div>
+        <div class="banner-main" style="color:#22c55e">${m.settlement.paidBy} paid ${m.settlement.paidTo} ${fmt(m.settlement.amount)}</div>
+        <div class="banner-sub">📅 ${m.settlement.date}${m.settlement.note?" · "+m.settlement.note:""}</div>
+      </div>
+      <button class="btn-ghost" onclick="unsettle()">Undo</button>
+    </div>`;
+  const owedBy=netA>0?PB:PA, owedTo=netA>0?PA:PB, owedAmt=Math.abs(netA);
+  return `
+    <div class="banner pending">
+      <div>
+        <div class="banner-label" style="color:#f59e0b">SETTLEMENT PENDING</div>
+        <div class="banner-main">${owedBy} owes ${owedTo} <span style="color:#f59e0b">${fmt(owedAmt)}</span></div>
+      </div>
+      <button class="btn-settle" onclick="openSettle(${owedAmt},'${owedBy}','${owedTo}')">Mark as Settled</button>
+    </div>`;
+}
+
+function renderDashboard(c){
+  return `
+    ${renderBanner(c)}
+    <div class="grid2">
+      <div class="card"><div class="card-title">Total Expenses</div><div class="big">${fmt(c.totExp)}</div></div>
+      <div class="card"><div class="card-title">Total Savings</div><div class="big" style="color:#f59e0b">${fmt(c.totSav)}</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title" style="color:#ec4899">${PA} — ${Math.round(SA*100)}%</div>
+        <div class="kv"><span class="k">Fair share (expenses)</span><span class="v">${fmt(c.shareAe)}</span></div>
+        <div class="kv"><span class="k">Actually paid</span><span class="v">${fmt(c.pAe)}</span></div>
+        <div class="divider"></div>
+        <div class="kv"><span class="k">Savings contribution (64%)</span><span class="v" style="color:#f59e0b">${fmt(c.shareAs)}</span></div>
+        <div class="kv"><span class="k">Savings paid</span><span class="v" style="color:#f59e0b">${fmt(c.pAs)}</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#6366f1">${PB} — ${Math.round(SB*100)}%</div>
+        <div class="kv"><span class="k">Fair share (expenses)</span><span class="v">${fmt(c.shareBe)}</span></div>
+        <div class="kv"><span class="k">Actually paid</span><span class="v">${fmt(c.pBe)}</span></div>
+        <div class="divider"></div>
+        <div class="kv"><span class="k">Savings contribution (36%)</span><span class="v" style="color:#f59e0b">${fmt(c.shareBs)}</span></div>
+        <div class="kv"><span class="k">Savings paid</span><span class="v" style="color:#f59e0b">${fmt(c.pBs)}</span></div>
+      </div>
+    </div>`;
+}
+
+function renderRow(e,isFixed){
+  if(state.editId===e.id) return `
+    <div class="tbl-row">
+      <input value="${e.description}" oninput="state.editVals.description=this.value">
+      <input value="${e.category}" oninput="state.editVals.category=this.value">
+      <input type="number" value="${e.amount}" oninput="state.editVals.amount=this.value">
+      <select onchange="state.editVals.paidBy=this.value"><option${e.paidBy===PA?" selected":""}>${PA}</option><option${e.paidBy===PB?" selected":""}>${PB}</option></select>
+      <select onchange="state.editVals.type=this.value"><option value="expense"${e.type==="expense"?" selected":""}>Expense</option><option value="savings"${e.type==="savings"?" selected":""}>Savings</option></select>
+      <div><button class="btn-icon" style="color:#22c55e" onclick="saveEdit('${e.id}',${isFixed})">✓</button><button class="btn-icon" onclick="state.editId=null;render()">✕</button></div>
+    </div>`;
+  return `
+    <div class="tbl-row">
+      <div>${e.description}</div>
+      <div style="font-size:12px;color:#94a3b8">${e.category}</div>
+      <div style="font-weight:600;color:${e.type==="savings"?"#f59e0b":"#f1f5f9"}">${fmt(e.amount)}</div>
+      ${pill(e.paidBy, e.paidBy===PA?"pill-a":"pill-b")}
+      ${pill(e.type, e.type==="savings"?"pill-sav":"pill-exp")}
+      <div><button class="btn-icon" onclick="startEdit(${JSON.stringify(e).replace(/"/g,'&quot;')})">✏️</button><button class="btn-icon" style="color:#f87171" onclick="removeEntry('${e.id}',${isFixed})">🗑️</button></div>
+    </div>`;
+}
+
+function renderExpenses(m){
+  const fixedRows=m.fixed.map(e=>renderRow(e,true)).join("");
+  const varRows=m.variable.map(e=>renderRow(e,false)).join("");
+  return `
+    <div class="card">
+      <div class="card-title">Fixed Expenses & Savings</div>
+      <div class="tbl-head"><span>Description</span><span>Category</span><span>Amount</span><span>Paid By</span><span>Type</span><span></span></div>
+      ${fixedRows}
+    </div>
+    <div class="card">
+      <div class="card-title">Variable Expenses</div>
+      <div class="tbl-head"><span>Description</span><span>Category</span><span>Amount</span><span>Paid By</span><span>Type</span><span></span></div>
+      ${varRows||'<div style="color:#94a3b8;font-size:13px;padding:12px 0">No variable expenses yet.</div>'}
+      <div class="add-row">
+        <input placeholder="Description" value="${state.newDesc}" oninput="state.newDesc=this.value">
+        <input placeholder="Category" value="${state.newCat}" oninput="state.newCat=this.value">
+        <input type="number" placeholder="Amount" value="${state.newAmt}" oninput="state.newAmt=this.value">
+        <select onchange="state.newPaid=this.value"><option${state.newPaid===PA?" selected":""}>${PA}</option><option${state.newPaid===PB?" selected":""}>${PB}</option></select>
+        <select onchange="state.newType=this.value"><option value="expense"${state.newType==="expense"?" selected":""}>Expense</option><option value="savings"${state.newType==="savings"?" selected":""}>Savings</option></select>
+        <button class="btn-add" onclick="addEntry()">+ Add</button>
+      </div>
+    </div>`;
+}
+
+function renderHistory(){
+  const keys=Object.keys(state.data).sort().reverse().slice(0,24);
+  if(!keys.length) return `<div class="card"><div class="card-title">Monthly History</div><div style="color:#94a3b8;font-size:13px">No data yet.</div></div>`;
+  const rows=keys.map(k=>{
+    const m=state.data[k], c=calcMonth(m);
+    const [yr,mo]=k.split("-");
+    const label=`${MONTHS[parseInt(mo)-1]} ${yr}`;
+    const isEven=Math.abs(c.netA)<.01;
+    let status;
+    if(isEven) status=`<span style="font-size:12px;color:#22c55e;font-weight:600">Even ✓</span>`;
+    else if(m.settlement) status=`<span style="font-size:12px;color:#22c55e;font-weight:600">Settled ✓ · ${m.settlement.date}</span>`;
+    else { const ob=c.netA>0?PB:PA; status=`<span style="font-size:12px;color:#f59e0b;font-weight:600">${ob} owes ${fmt(Math.abs(c.netA))} · Pending</span>`; }
+    return `<div class="hist-row">
+      <div class="top">
+        <span style="font-size:14px;font-weight:700;min-width:130px">${label}</span>
+        <span style="font-size:13px;color:#94a3b8">Expenses: <b style="color:#f1f5f9">${fmt(c.totExp)}</b></span>
+        <span style="font-size:13px;color:#94a3b8">Savings: <b style="color:#f59e0b">${fmt(c.totSav)}</b></span>
+        ${status}
+      </div>
+      ${m.settlement?.note?`<div class="note">Note: ${m.settlement.note}</div>`:""}
+    </div>`;
+  }).join("");
+  return `<div class="card"><div class="card-title">Monthly History</div>${rows}</div>`;
+}
+
+function renderModal(c){
+  if(!state.showModal) return "";
+  const {netA}=c, owedAmt=Math.abs(netA), owedBy=netA>0?PB:PA, owedTo=netA>0?PA:PB;
+  return `<div class="overlay">
+    <div class="modal">
+      <h2>Mark Settlement</h2>
+      <p>${owedBy} pays ${owedTo} <span style="color:#f59e0b;font-weight:700">${fmt(owedAmt)}</span></p>
+      <div class="field"><label>Date of payment</label><input type="date" value="${state.settleDate}" oninput="state.settleDate=this.value"></div>
+      <div class="field"><label>Note (optional)</label><input placeholder="e.g. e-transfer, cash…" value="${state.settleNote}" oninput="state.settleNote=this.value"></div>
+      <div class="modal-btns">
+        <button style="background:#22c55e;color:#fff;border:none" onclick="markSettled('${owedBy}','${owedTo}',${owedAmt})">Confirm Settled</button>
+        <button class="btn-ghost" onclick="state.showModal=false;render()">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openSettle(amt,by,to){ state.showModal=true; render(); }
+
+// ── main render ────────────────────────────────────────────────
+function render(){
+  const m=curMonth(), c=calcMonth(m);
+  document.getElementById("app").innerHTML=`
+    <header>
+      <h1>🏠 Liza & Laura — Household Tracker <span id="syncdot" class="sync-dot${state.syncing?" saving":""}"></span></h1>
+      <div class="month-nav">
+        <button class="btn-nav" onclick="navigate(-1)">‹</button>
+        <span>${MONTHS[state.month]} ${state.year}</span>
+        <button class="btn-nav" onclick="navigate(1)">›</button>
+      </div>
+    </header>
+    <nav>
+      <button class="btn-tab${state.tab==="dashboard"?" active":""}" onclick="state.tab='dashboard';render()">📊 Dashboard</button>
+      <button class="btn-tab${state.tab==="expenses"?" active":""}" onclick="state.tab='expenses';render()">💳 Expenses</button>
+      <button class="btn-tab${state.tab==="history"?" active":""}" onclick="state.tab='history';render()">📅 History</button>
+    </nav>
+    <main>
+      ${state.tab==="dashboard"?renderDashboard(c):""}
+      ${state.tab==="expenses"?renderExpenses(m):""}
+      ${state.tab==="history"?renderHistory():""}
+    </main>
+    ${renderModal(c)}`;
+}
+
+// ── boot ───────────────────────────────────────────────────────
+if(window._DB_READY) loadData();
+else window.addEventListener("db-ready", loadData);
+</script>
 </body>
 </html>
