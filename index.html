@@ -224,7 +224,11 @@ function setMonth(updater){
 function navigate(dir){
   let mo=state.month+dir,y=state.year;
   if(mo<0){mo=11;y--;} if(mo>11){mo=0;y++;}
-  state.month=mo;state.year=y;render();
+  state.month=mo;state.year=y;
+  // initialize month in data if not yet saved so editing works
+  const k=mKey(y,mo);
+  if(!state.data[k]){ state.data[k]=initMonth(k); saveData(); }
+  render();
 }
 
 function addEntry(){
