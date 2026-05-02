@@ -264,6 +264,9 @@ function saveSplit(){
 
 function calcMonth(m){
   const {sa,sb}=getMonthSplit(m);
+  if(!m.fixed) m.fixed=DEFAULT_FIXED.map(e=>({...e,id:uid()}));
+  if(!m.variable) m.variable=[];
+  if(!m.settlement) m.settlement=null;
   const all=[...m.fixed,...m.variable];
   const exp=all.filter(e=>e.type==="expense"),sav=all.filter(e=>e.type==="savings");
   const totExp=exp.reduce((s,e)=>s+Number(e.amount),0);
